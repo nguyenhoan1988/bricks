@@ -48,6 +48,26 @@ def read_data(path):
             print e
 
 
+def read_config(path):
+    filename, file_extension = os.path.splitext(path)
+    if file_extension == '.json':
+        try:
+            import json
+            with open(path, 'rb') as f:
+                config = json.load(f)
+            return config
+        except Exception, e:
+            print e
+    elif file_extension == '.yaml':
+        try:
+            import yaml
+            with open(path, 'rb') as f:
+                config = yaml.load(f)
+            return config
+        except Exception, e:
+            print e
+
+
 def main(options):
     parser = ArgumentParser(prog='Bricks',
                             formatter_class=RawDescriptionHelpFormatter,
@@ -66,8 +86,12 @@ def main(options):
 
     print utils.announce(program_description)
 
+    print '-' * 120
+
     print utils.info('Loading data from %s' % utils.announce(args.data_path))
     print '\n'
+    print '-' * 120
+
     df = read_data(args.data_path)
 
     print utils.info('Columns:'), utils.announce(', '.join(df.columns))
@@ -78,9 +102,10 @@ def main(options):
     for label, count in df[args.label_column].value_counts().iteritems():
         print utils.announce(label), count
 
-    print '\n'
+    print '-' * 120
+    print '\n\n'
 
-    features = GroupFeatures([
+    features1 = GroupFeatures([
         ConstantFeature('Sepal Length'),
         ArithmeticFeature('Sepal Width', ArithmeticOperator.LOG, 2),
         ArithmeticFeature('Petal Length', ArithmeticOperator.ADD, 10),
@@ -91,29 +116,38 @@ def main(options):
         ])
     ])
 
-    print utils.info('Extracting features')
-    X = features.transform(df).T
-    y = df[args.label_column].tolist()
+    features2 = GroupFeatures([
+        ConstantFeature(column_name) for column_name in ['Sepal Length', 'Sepal Width', 'Petal Length', 'Petal Width']
+    ])
 
-    print '\n\n'
+    features_sets = [features1, features2]
+    print utils.info('Features Sets:'), utils.announce(str(len(features_sets)))
+
     classifiers = [
         linear_model.LogisticRegression(penalty='l2'),
         neighbors.KNeighborsClassifier(10, weights='uniform', algorithm='auto', leaf_size=35, p=2, metric='minkowski'),
         linear_model.PassiveAggressiveClassifier(n_iter=9),
         linear_model.SGDClassifier(loss="hinge", penalty='l2', n_iter=5),
         tree.DecisionTreeClassifier(max_depth=5),
-        ensemble.RandomForestClassifier(max_depth=5, n_estimators=10, max_features=1)
+        ensemble.RandomForestClassifier(max_depth=5, n_estimators=20, max_features=1)
     ]
     classifiers_names = [classifier.__class__.__name__ for classifier in classifiers]
     print utils.info('Evaluating classifiers:'), utils.announce(', '.join(classifiers_names))
 
+    print '\n'
+
     models = []
-    for name, classifier in zip(classifiers_names, classifiers):
-        print utils.info('Training'), utils.announce(name)
-        models.append(classifier.fit(X, y))
-        scores = cross_validation.cross_val_score(classifier, X, y, cv=args.fold_num, n_jobs=3)
-        print utils.info('\t\tAccuracy'), utils.announce(str(np.mean(scores))), utils.debug('+-' + '%.2f' % (np.std(scores)))
-        print '\n'
+    for index, features in enumerate(features_sets):
+        print '-' * 120
+        print utils.info('Extracting features [%s]' % (index + 1))
+        X = features.transform(df).T
+        y = df[args.label_column].tolist()
+        for name, classifier in zip(classifiers_names, classifiers):
+            print utils.info('Training'), utils.announce(name)
+            models.append(classifier.fit(X, y))
+            scores = cross_validation.cross_val_score(classifier, X, y, cv=args.fold_num, n_jobs=3)
+            print utils.info('Accuracy'), utils.announce(str(np.mean(scores))), utils.debug('+-' + '%.2f' % (np.std(scores)))
+            print '\n'
 
 if __name__ == '__main__':
     df = main(sys.argv[1:])

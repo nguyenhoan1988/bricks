@@ -51,10 +51,10 @@ class ArithmeticFeature(object):
         self.operand = operand
 
     def __str__(self):
-        return 'ArithmeticFeature (%s): %s' % (self.arithmetic_operator, self.column_name)
+        return 'ArithmeticFeature: %s <%s> %s' % (self.column_name, self.arithmetic_operator.__name__, self.operand)
 
     def __repr__(self):
-        return 'ArithmeticFeature (%s): %s' % (self.arithmetic_operator, self.column_name)
+        return 'ArithmeticFeature: %s <%s> %s' % (self.column_name, self.arithmetic_operator.__name__, self.operand)
 
     def transform(self, data):
         if isinstance(self.column_name, basestring):
@@ -94,12 +94,12 @@ class GroupFeatures(object):
         self.features = features
 
     def __str__(self):
-        return 'GroupFeatures (%s features): [\n\t%s\n]' % \
-            (len(self.features), '\n+\n'.join([str(feature) for feature in self.features]))
+        return 'GroupFeatures (%s features): [%s]' % \
+            (len(self.features), ' + '.join([str(feature) for feature in self.features]))
 
     def __repr__(self):
-        return 'GroupFeatures (%s features): [\n%s\n]' % \
-            (len(self.features), '\n+\n'.join([str(feature) for feature in self.features]))
+        return 'GroupFeatures (%s features): [%s]' % \
+            (len(self.features), ' + '.join([str(feature) for feature in self.features]))
 
     def transform(self, data):
         return np.vstack([feature.transform(data) for feature in self.features])
